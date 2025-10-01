@@ -1,0 +1,99 @@
+local DataStoreService = game:GetService("DataStoreService")
+
+local Kills_LB_Data = DataStoreService:GetOrderedDataStore("Kills LB Data")
+local Time_LB_Data = DataStoreService:GetOrderedDataStore("Time LB Data")
+
+local data_table = {}
+
+local UpdateTime = 5
+
+local function getPlayerThumbnail(userId)
+	local success, content, isReady = pcall(function()
+		return game.Players:GetUserThumbnailAsync(userId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size420x420)
+	end)
+
+	if success and isReady then
+		return content
+	else
+		return nil
+	end
+end
+
+local function formatNumber(number)
+	return string.format("%d", number):reverse():gsub("(%d%d%d)", "%1,"):reverse():gsub("^,", "")
+end
+
+local function updateLeaderboard(dataStore, listFrame)
+	for _, leaderboardRank in pairs(listFrame:GetChildren()) do
+		if leaderboardRank:IsA("Frame") then
+			leaderboardRank:Destroy()
+		end
+	end
+	
+	local success, errorMsg = pcall(function()
+		local data = dataStore:GetSortedAsync(false, 50)
+		local page = data:GetCurrentPage()
+
+		for rankInLB, dataStored in ipairs(page) do
+			local userId = tonumber(dataStored.key)
+			local name = game.Players:GetNameFromUserIdAsync(userId)
+			local value = formatNumber(dataStored.value)
+
+			local template = script.Template:Clone()
+			template.Name = name .. "Leaderboard"
+			template.PlrName.Text = `<font size="20">{name}</font> <font size="14" transparency="0.3">- #{rankInLB}</font>`
+			template.Label.Text = value
+			template.Image.Image = getPlayerThumbnail(userId)
+			
+			template.Parent = listFrame
+		end
+	end)
+end
+
+updateLeaderboard(Kills_LB_Data , workspace.KillsLB.LB:WaitForChild("List"))
+updateLeaderboard(Time_LB_Data , workspace.TimeLB.LB:WaitForChild("List"))
+
+
+while wait(1) do
+	UpdateTime -= 1
+	
+	workspace.KillsLB.LB.ResetTime.Text = tostring(UpdateTime)
+	workspace.TimeLB.LB.ResetTime.Text = tostring(UpdateTime)
+
+	for _, plr in pairs(game.Players:GetChildren()) do
+		for i,v in data_table do
+			if v[plr.UserId] then
+				for i,v in data_table do
+					if v[plr.UserId] then
+						table.remove(data_table, i)
+					end
+				end
+			else
+			end
+		end
+		
+		local template = {
+			[plr.UserId] = {
+				["Kills"] = plr:WaitForChild("leaderstats").Kills.Value,
+				["Time"] = plr:WaitForChild("leaderstats")["Top Time"].Value
+			}
+		}
+
+		table.insert(data_table, template)
+	end
+	
+	if UpdateTime <= 0 then
+		for _, plr in pairs(game.Players:GetChildren()) do
+			for i,v in data_table do
+				if v[plr.UserId] then
+					Kills_LB_Data:SetAsync(plr.UserId, math.round(v[plr.UserId].Kills))
+					Time_LB_Data:SetAsync(plr.UserId, math.round(v[plr.UserId].Time))
+				end
+			end
+		end
+	
+	updateLeaderboard(Kills_LB_Data , workspace.KillsLB.LB:WaitForChild("List"))
+	updateLeaderboard(Time_LB_Data , workspace.TimeLB.LB:WaitForChild("List"))
+	UpdateTime = 90
+	end
+end
