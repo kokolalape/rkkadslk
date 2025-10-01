@@ -1,0 +1,82 @@
+local DataStoreService = game:GetService("DataStoreService")
+
+local playerDataStore = DataStoreService:GetDataStore("PlayerDataStore")
+
+game.Players.PlayerAdded:Connect(function(player)
+	local leaderstats = Instance.new("Folder")
+	leaderstats.Name = "leaderstats"
+	leaderstats.Parent = player
+
+	local time = Instance.new("NumberValue")
+	time.Name = "Time"
+	time.Value = 0
+	time.Parent = leaderstats
+
+	local kills = Instance.new("IntValue")
+	kills.Name = "Kills"
+	kills.Value = 0
+	kills.Parent = leaderstats
+
+	local topTime = Instance.new("NumberValue")
+	topTime.Name = "Top Time"
+	topTime.Value = 0
+	topTime.Parent = leaderstats
+
+	local stats = Instance.new("Folder", player)
+	stats.Name = "stats"
+
+	local BankTime = Instance.new("NumberValue", stats)
+	BankTime.Name = "BankTime"
+	BankTime.Value = 0
+
+	local settings = Instance.new("Folder", player)
+	settings.Name = "settings"
+
+	local KillSoundId = Instance.new("StringValue", settings)
+	KillSoundId.Name = "KillSoundId"
+	KillSoundId.Value = "" -- Default value
+
+	local success, data = pcall(function()
+		return playerDataStore:GetAsync(player.UserId)
+	end)
+
+	if success and data then
+		time.Value = data.Time or 0
+		kills.Value = data.Kills or 0
+		topTime.Value = data.TopTime or 0
+		BankTime.Value = data.BankTime or 0
+	else
+		time.Value = 0
+		kills.Value = 0
+		topTime.Value = 0
+		BankTime.Value = 0
+	end
+
+	time.Changed:Connect(function(newValue)
+		if newValue > topTime.Value then
+			topTime.Value = newValue
+		end
+	end)
+end)
+
+game.Players.PlayerRemoving:Connect(function(player)
+	local tags = player:GetTags()
+
+	if tags.gainingTime ~= nil then
+		local Times = player.leaderstats.Time.Value * 0.3
+		player.leaderstats.Time.Value = player.leaderstats.Time.Value - Times
+	end
+
+	local success, errorMessage = pcall(function()
+		playerDataStore:SetAsync(player.UserId, {
+			Time = player.leaderstats.Time.Value,
+			Kills = player.leaderstats.Kills.Value,
+			TopTime = player.leaderstats["Top Time"].Value,
+			BankTime = player.stats.BankTime.Value,
+		})
+	end)
+
+	if not success then
+		warn("Error saving data for player " .. player.Name .. ": " .. errorMessage)
+	end
+end)
