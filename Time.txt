@@ -1,0 +1,12 @@
+local CollectionService = game:GetService("CollectionService")
+local RunService = game:GetService("RunService")
+
+RunService.Heartbeat:Connect(function(deltaTime: number)
+	for _, player in CollectionService:GetTagged("gainingTime") do
+		local leaderstats = player:WaitForChild("leaderstats")
+		local timeV: NumberValue = leaderstats:WaitForChild("Time")
+		
+		local multiplier = player:GetAttribute("multiplier")
+		timeV.Value += deltaTime * multiplier
+	end
+end)	
