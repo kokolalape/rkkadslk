@@ -1,0 +1,28 @@
+--// Time Reset --\\
+
+local function onPlayerDeath(player)
+	local leaderstats = player:FindFirstChild("leaderstats")
+	if leaderstats then
+		local timeValue = leaderstats:FindFirstChild("Time")
+		if timeValue then
+			timeValue.Value = 0
+		end
+	end
+end
+
+local function onCharacterAdded(character, player)
+	local humanoid = character:FindFirstChild("Humanoid")
+	if humanoid then
+		humanoid.Died:Connect(function()
+			onPlayerDeath(player)
+		end)
+	end
+end
+
+local Players = game:GetService("Players")
+
+Players.PlayerAdded:Connect(function(player)
+	player.CharacterAdded:Connect(function(character)
+		onCharacterAdded(character, player)
+	end)
+end)
