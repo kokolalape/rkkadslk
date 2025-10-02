@@ -1,0 +1,137 @@
+-- LevelBar XP UI (final)
+-- Place this LocalScript in: StarterGui > UserInterface > LevelBar
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local task = task
+
+local player = Players.LocalPlayer
+
+-- Wait for PlayerGui + UI
+local playerGui = player:WaitForChild("PlayerGui")
+local userInterface = playerGui:WaitForChild("UserInterface")
+local levelBar = userInterface:WaitForChild("LevelBar")
+
+local xpList = levelBar:WaitForChild("XPList")
+-- Find Zone Time label or create fallback
+local zoneLabel = xpList:FindFirstChild("Zone Time")
+if not zoneLabel then
+	zoneLabel = xpList:FindFirstChildWhichIsA("TextLabel")
+end
+if not zoneLabel then
+	zoneLabel = Instance.new("TextLabel")
+	zoneLabel.Name = "Zone Time"
+	zoneLabel.Size = UDim2.new(1, 0, 0, 24)
+	zoneLabel.BackgroundTransparency = 1
+	zoneLabel.RichText = true
+	zoneLabel.TextXAlignment = Enum.TextXAlignment.Left
+	zoneLabel.Parent = xpList
+end
+zoneLabel.RichText = true
+zoneLabel.Visible = false -- hidden until player is outside
+
+local levelLabel = levelBar:FindFirstChild("Level")
+if not levelLabel then
+	levelLabel = Instance.new("TextLabel")
+	levelLabel.Name = "Level"
+	levelLabel.Size = UDim2.new(1, 0, 0, 24)
+	levelLabel.BackgroundTransparency = 1
+	levelLabel.TextXAlignment = Enum.TextXAlignment.Left
+	levelLabel.Parent = levelBar
+end
+
+-- Optional second UI time display
+local uiV2 = playerGui:FindFirstChild("UserInterfaceV2")
+local timeLabelV2
+if uiV2 then
+	local frameV2 = uiV2:FindFirstChild("Frame")
+	if frameV2 then
+		timeLabelV2 = frameV2:FindFirstChild("TextLabel")
+	end
+end
+
+-- Leaderstats references (existing)
+local leaderstats = player:WaitForChild("leaderstats")
+local timeStat = leaderstats:WaitForChild("Time")    -- existing Time number
+-- killsStat available if needed later
+local killsStat = leaderstats:FindFirstChild("Kills")
+
+-- XP / Level config
+local XP_PER_TIME_UNIT = 1       -- 1 XP per 1 Time unit (integer)
+local LEVEL_XP = {250, 350, 500} -- xp caps for level0, level1, level2
+
+-- State
+local totalXP = 0                -- total XP accumulated (session-only)
+local lastFloorTime = math.floor(timeStat.Value)
+local hideDelay = 1.25           -- seconds after last time-increase to hide the zone label
+local hideToken = 0
+
+-- Helper: compute level, xpIntoCurrent, nextCap
+local function computeLevelFromXP(xp)
+	local level = 0
+	local remaining = xp
+	for i = 1, #LEVEL_XP do
+		local cap = LEVEL_XP[i]
+		if remaining >= cap then
+			remaining = remaining - cap
+			level = level + 1
+		else
+			return level, remaining, cap
+		end
+	end
+	-- beyond defined levels: return level and remainder, next cap = last defined cap
+	return level, remaining, LEVEL_XP[#LEVEL_XP]
+end
+
+-- Update UI visuals
+local function refreshUI()
+	-- compute level info
+	local lvl, xpInto, nextCap = computeLevelFromXP(totalXP)
+	local remainingToNext = math.max(0, nextCap - xpInto)
+
+	-- top label: "Level X - Y XP Left"
+	if levelLabel then
+		levelLabel.Text = string.format("Level %d - %d XP Left", lvl, remainingToNext)
+	end
+
+	-- zone label: "<b>Zone Time (xN)     +M XP</b>"
+	if zoneLabel then
+		zoneLabel.Text = string.format("<b>Zone Time (x%d)     +%d XP</b>", math.floor(timeStat.Value), math.floor(totalXP))
+	end
+
+	-- UI V2 time display (if present)
+	if timeLabelV2 then
+		timeLabelV2.Text = tostring(math.floor(timeStat.Value))
+	end
+end
+
+-- Called when time changes (awards XP for integer increments)
+local function onTimeChanged(newVal)
+	local newFloor = math.floor(newVal)
+	if newFloor > lastFloorTime then
+		local gainedUnits = newFloor - lastFloorTime
+		-- award 1 XP per 1 Time unit (integer)
+		totalXP = totalXP + (gainedUnits * XP_PER_TIME_UNIT)
+
+		-- show zone label (player is earning time/outside safezone)
+		if zoneLabel then zoneLabel.Visible = true end
+
+		-- schedule hide after inactivity; cancel previous scheduled hides
+		hideToken = hideToken + 1
+		local thisToken = hideToken
+		task.delay(hideDelay, function()
+			if thisToken ~= hideToken then return end
+			-- hide if no new time-increase happened since scheduling
+			if zoneLabel then zoneLabel.Visible = false end
+		end)
+	end
+
+	lastFloorTime = newFloor
+	refreshUI()
+end
+
+-- Connect events
+timeStat.Changed:Connect(onTimeChanged)
+
+-- Initial UI refresh
+refreshUI()
