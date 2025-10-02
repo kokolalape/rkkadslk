@@ -1,0 +1,97 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- UI references
+local userInterface = playerGui:WaitForChild("UserInterface")
+local levelBar = userInterface:WaitForChild("LevelBar")
+local xpList = levelBar:WaitForChild("XPList")
+local levelLabel = levelBar:WaitForChild("Level")
+
+-- Second UI for time display
+local uiV2 = playerGui:WaitForChild("UserInterfaceV2")
+local frameV2 = uiV2:WaitForChild("Frame")
+local timeLabelV2 = frameV2:WaitForChild("TextLabel")
+
+-- Create Zone Time label if not found
+local zoneLabel = xpList:FindFirstChild("Zone Time")
+if not zoneLabel then
+	local newLabel = Instance.new("TextLabel")
+	newLabel.Name = "Zone Time"
+	newLabel.Text = "<b>Zone Time (x0)     +0 XP</b>"
+	newLabel.RichText = true
+	newLabel.Font = Enum.Font.SourceSansBold
+	newLabel.TextSize = 20
+	newLabel.Size = UDim2.new(1, 0, 0, 25)
+	newLabel.BackgroundTransparency = 1
+	newLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	newLabel.Parent = xpList
+	zoneLabel = newLabel
+end
+
+-- XP requirements
+local levelXP = {
+	[0] = 250,
+	[1] = 350,
+	[2] = 500,
+}
+
+-- Player data
+local currentXP = 0
+local currentLevel = 0
+local currentTime = 0
+local inSafeZone = true -- ⚠️ replace this with your actual safezone detection later!
+
+-- Function to get XP needed for current level
+local function getXPNeeded(level)
+	return levelXP[level] or 999999
+end
+
+-- Function to update Level label
+local function updateLevelLabel()
+	local xpNeeded = getXPNeeded(currentLevel)
+	levelLabel.Text = string.format("Level %d | %d/%d XP", currentLevel, currentXP, xpNeeded)
+end
+
+-- Function to update Zone Time label
+local function updateZoneTimeLabel()
+	if not zoneLabel then return end
+	if inSafeZone then
+		zoneLabel.Visible = false
+	else
+		zoneLabel.Visible = true
+		zoneLabel.Text = string.format("<b>Zone Time (x%d)     +%d XP</b>", currentTime, currentXP)
+	end
+end
+
+-- Function to update secondary time UI
+local function updateTimeV2()
+	timeLabelV2.Text = tostring(currentTime)
+end
+
+-- XP gain logic (example: +1 XP per second outside safezone)
+RunService.Heartbeat:Connect(function(dt)
+	if not inSafeZone then
+		currentTime += dt
+		currentXP += math.floor(dt * 1) -- 1 XP per second outside
+	end
+
+	-- Level up logic
+	local xpNeeded = getXPNeeded(currentLevel)
+	if currentXP >= xpNeeded then
+		currentXP -= xpNeeded
+		currentLevel += 1
+	end
+
+	updateLevelLabel()
+	updateZoneTimeLabel()
+	updateTimeV2()
+end)
+
+-- Example: detect safezone changes (replace this with your actual logic)
+-- e.g., connect to a BoolValue:
+-- player:WaitForChild("InSafeZone").Changed:Connect(function(value)
+--     inSafeZone = value
+-- end)
