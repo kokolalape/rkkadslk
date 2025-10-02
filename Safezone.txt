@@ -1,0 +1,44 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local safeZone = workspace:WaitForChild("Safezone"):WaitForChild("safey")
+
+RunService.Heartbeat:Connect(function(deltaTime: number)
+	local safePlayers = {}
+
+	-- Obținem toate piesele din zona sigură
+	local partsInSafeZone = workspace:GetPartBoundsInBox(safeZone.CFrame, safeZone.Size)
+
+	for _, part in pairs(partsInSafeZone) do
+		if part.Name ~= "HumanoidRootPart" then continue end
+
+		local player = Players:GetPlayerFromCharacter(part.Parent)
+		if not player then continue end
+		if not player.Character:FindFirstChildWhichIsA("Humanoid") then continue end	
+
+		table.insert(safePlayers, player)
+	end
+
+	-- Aplicăm tag-urile în funcție de prezența în zona sigură
+	for _, player in Players:GetPlayers() do
+		local humanoid = player.Character and player.Character:FindFirstChildWhichIsA("Humanoid")
+		if table.find(safePlayers, player) then
+			player:AddTag("safe")
+			if player:HasTag("gainingTime") then
+				player:RemoveTag("gainingTime")
+			end
+		else
+			if humanoid and humanoid.Health > 0 then
+				player:AddTag("gainingTime")
+			else
+				if player:HasTag("gainingTime") then
+					player:RemoveTag("gainingTime")
+				end
+			end
+
+			if player:HasTag("safe") then
+				player:RemoveTag("safe")
+			end
+		end
+	end
+end)
