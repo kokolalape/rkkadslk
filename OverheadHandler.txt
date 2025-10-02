@@ -1,0 +1,221 @@
+local groupId = 33817432
+
+local overheadFolder = game.ServerStorage:WaitForChild("Overhead")
+local rankk = overheadFolder:WaitForChild("User")
+local timee = overheadFolder:WaitForChild("Time")
+local health = overheadFolder:WaitForChild("Health")
+local regionFlag = overheadFolder:WaitForChild("Region")
+
+local pingRequestEvent = game.ReplicatedStorage:WaitForChild("ping")
+
+local regionMapping = {
+	["US"] = "🇺🇸",
+	["EU"] = "🇪🇺",
+	["AS"] = "🇨🇳",
+	["AU"] = "🇦🇺",
+	["BR"] = "🇧🇷",
+}
+
+local function getServerRegionEmoji(regionCode)
+	return regionMapping[regionCode] or "🇺🇳"
+end
+
+local function GetRoleColor(role)
+	local roleColors = {
+		["Guest"] = Color3.fromRGB(255, 255, 255),
+		["Member"] = Color3.fromRGB(255, 255, 255),
+		["Server Booster"] = Color3.fromRGB(255, 170, 255),
+		["Tester"] = Color3.fromRGB(32, 102, 148),
+		["Top Donator"] = Color3.fromRGB(35, 108, 47),
+		["Content Creator"] = Color3.fromRGB(82, 26, 26),
+		["Trial Moderator"] = Color3.fromRGB(167, 240, 138),
+		["Moderator"] = Color3.fromRGB(113, 54, 138),
+		["Administrator"] = Color3.fromRGB(153, 45, 34),
+		["Developer"] = Color3.fromRGB(52, 152, 219),
+		["Manager"] = Color3.fromRGB(99, 99, 61),
+		["Co-Owner"] = Color3.fromRGB(235, 120, 255),
+		["GOD"] = Color3.fromRGB(226, 226, 86),
+		["Holder"] = Color3.fromRGB(226, 226, 86),
+	}
+	return roleColors[role]
+end
+
+local function getRegionFlagEmoji(countryCode)
+	local emoji = "🇺🇳"
+	if countryCode == "US" then
+		emoji = "🇺🇸"
+	elseif countryCode == "CN" then
+		emoji = "🇨🇳"
+	elseif countryCode == "IN" then
+		emoji = "🇮🇳"
+	elseif countryCode == "JP" then
+		emoji = "🇯🇵"
+	elseif countryCode == "BR" then
+		emoji = "🇧🇷"
+	elseif countryCode == "AU" then
+		emoji = "🇦🇺"
+	end
+	return emoji
+end
+
+local function formatTimeWithCommas(time)
+	return string.format("%d", time):reverse():gsub("(%d%d%d)", "%1,"):reverse():gsub("^,", "")
+end
+
+local function Color3ToHex(color)
+	return string.format("#%02X%02X%02X", 
+		math.floor(color.R * 255), 
+		math.floor(color.G * 255), 
+		math.floor(color.B * 255))
+end
+
+-- Updated to show PC icon, number (no dot), and username, with larger text
+local function updateRankGui(player, clonedGui, bool, fakeusername)
+	local username = player.Name:sub(1, 20)
+	local rankName = player:GetRoleInGroup(groupId):sub(1, 10000)
+	local textLabel = clonedGui:FindFirstChild("TextLabel")
+
+	if fakeusername ~= nil then
+		username = fakeusername
+	end
+
+	if textLabel then
+		local roleColor = GetRoleColor(rankName)
+		local hexColor = Color3ToHex(roleColor)
+
+		textLabel.RichText = true
+		textLabel.TextSize = 36  -- Larger text
+		-- Format: 🖥️ 1 <Username> with role color and black stroke
+		textLabel.Text = string.format("<stroke color='#000000' thickness='1.4'>🖥️ 1 <font color='%s'>%s</font></stroke>", hexColor, username)
+		print("Updated User GUI for " .. player.Name .. ": " .. textLabel.Text)
+
+		if bool == true then
+			textLabel.Text = string.format("<stroke color='#000000' thickness='1.4'>🖥️ 1 <font color='%s'>%s</font></stroke>", hexColor, username)
+		elseif bool == false then
+			textLabel.Text = string.format("<stroke color='#000000' thickness='1.4'>🖥️ 1 <font color='%s'>%s</font></stroke>", Color3ToHex(Color3.fromRGB(255, 255, 255)), username)
+		end
+	end
+end
+
+local function updateTimeGui(player, clonedGui, bool)
+	local timeValue = player:FindFirstChild("leaderstats"):FindFirstChild("Time")
+	local textLabel = clonedGui:FindFirstChild("TextLabel")
+	if textLabel and timeValue then
+		textLabel.Text = string.format("%s", formatTimeWithCommas(timeValue.Value))
+		textLabel.TextColor3 = GetRoleColor(player:GetRoleInGroup(groupId):sub(1, 10000))
+
+		if bool == true then
+		elseif bool == false then
+			textLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+		end
+
+		timeValue.Changed:Connect(function()
+			textLabel.Text = string.format("%s", formatTimeWithCommas(timeValue.Value))
+		end)
+	end
+end
+
+local function updateHealthGui(character, clonedGui)
+	local char = character
+	local health
+
+	if char ~= nil then
+		char.Humanoid.Changed:Connect(function()
+			clonedGui:FindFirstChild("TextLabel").Text = math.floor(char.Humanoid.Health).."/"..char.Humanoid.MaxHealth
+
+			if char.Humanoid.Health <= 100 and char.Humanoid.Health >= 80 then
+				clonedGui:FindFirstChild("TextLabel").TextColor3 = Color3.fromRGB(44, 255, 114)
+			elseif char.Humanoid.Health <= 80 and char.Humanoid.Health >= 60 then
+				clonedGui:FindFirstChild("TextLabel").TextColor3 = Color3.fromRGB(230, 255, 71)
+			elseif char.Humanoid.Health <= 60 and char.Humanoid.Health >= 40 then
+				clonedGui:FindFirstChild("TextLabel").TextColor3 = Color3.fromRGB(255, 196, 47)
+			elseif char.Humanoid.Health <= 40 and char.Humanoid.Health >= 0 then
+				clonedGui:FindFirstChild("TextLabel").TextColor3 = Color3.fromRGB(255, 47, 85)
+			end
+		end)
+	end
+end
+
+local function updateRegionGui(player, clonedGui)
+	local countryCode = player.CountryRegionCode or "US"
+	local emoji = getRegionFlagEmoji(countryCode)
+	local textLabel = clonedGui:FindFirstChild("TextLabel")
+	if textLabel then
+		textLabel.Text = emoji
+	end
+end
+
+local function updateServerRegionGui(player, clonedGui)
+	local serverRegionEmoji = getServerRegionEmoji("US")
+	local textLabel = clonedGui:FindFirstChild("TextLabel")
+	if textLabel then
+		textLabel.Text = serverRegionEmoji
+	end
+end
+
+game.Players.PlayerAdded:Connect(function(player)
+	player.CharacterAdded:Connect(function(character)
+		-- Time GUI at the top
+		local timeGui = timee:Clone()
+		timeGui.Parent = character:WaitForChild("Head")
+		timeGui.Adornee = character.Head
+		timeGui.StudsOffset = Vector3.new(0, 3.5, 0)  -- Topmost position
+		updateTimeGui(player, timeGui)
+
+		-- Health GUI below Time
+		local healthGui = health:Clone()
+		healthGui.Parent = character:WaitForChild("Head")
+		healthGui.Adornee = character.Head
+		healthGui.StudsOffset = Vector3.new(0, 2.8, 0)  -- Below Time
+		updateHealthGui(character, healthGui)
+
+		-- User GUI (🖥️ 1 Username) at the bottom, just above head
+		local rankGui = rankk:Clone()
+		rankGui.Parent = character:WaitForChild("Head")
+		rankGui.Adornee = character.Head
+		rankGui.StudsOffset = Vector3.new(0, 2.1, 0)  -- Bottom, above head
+		updateRankGui(player, rankGui)
+		print("Created User GUI for " .. player.Name)
+
+		--[[ Comment out Region and ServerRegion to simplify
+		-- Region GUI
+		local regionGui = regionFlag:Clone()
+		regionGui.Parent = character:WaitForChild("Head")
+		regionGui.Adornee = character.Head
+		regionGui.StudsOffset = Vector3.new(0, 1.4, 0)
+		updateRegionGui(player, regionGui)
+
+		-- Server Region GUI
+		local serverRegionGui = regionFlag:Clone()
+		serverRegionGui.Parent = character:WaitForChild("Head")
+		serverRegionGui.Adornee = character.Head
+		serverRegionGui.StudsOffset = Vector3.new(0, 0.7, 0)
+		updateServerRegionGui(player, serverRegionGui)
+		--]]
+	end)
+end)
+
+local random_names = {
+	"bigoljoe104",
+	"sallymcsally199",
+	"SkibidiToiletGod",
+	"bigolgoosey",
+	"holyscamoly",
+}
+
+local random_name = random_names[math.random(#random_names)]
+
+game.ReplicatedStorage.Remotes.StaffDisplay.OnServerEvent:Connect(function(player, bool)
+	updateRankGui(player, player.character:WaitForChild("Head").User, bool)
+	updateTimeGui(player, player.character:WaitForChild("Head").Time, bool)
+
+	if bool == false then
+		player:SetAttribute("TagDisabled", true)
+		game.ReplicatedStorage.Remotes.StaffDisplay:FireAllClients(player, true)
+		updateRankGui(player, player.character:WaitForChild("Head").User, bool, random_name)
+	else
+		player:SetAttribute("TagDisabled", nil)
+		game.ReplicatedStorage.Remotes.StaffDisplay:FireAllClients(player, false)
+		updateRankGui(player, player.character:WaitForChild("Head").User, bool)
+	end
+end)
