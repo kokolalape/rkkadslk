@@ -1,12 +1,20 @@
-local CollectionService = game:GetService("CollectionService")
-local RunService = game:GetService("RunService")
+local player = game.Players.LocalPlayer
+local leaderstats = player:WaitForChild("leaderstats")
+local timeValue = leaderstats:WaitForChild("Time")
 
-RunService.Heartbeat:Connect(function(deltaTime: number)
-	for _, player in CollectionService:GetTagged("gainingTime") do
-		local leaderstats = player:WaitForChild("leaderstats")
-		local timeV: NumberValue = leaderstats:WaitForChild("Time")
-		
-		local multiplier = player:GetAttribute("multiplier")
-		timeV.Value += deltaTime * multiplier
-	end
-end)	
+local playerGui = player:WaitForChild("PlayerGui")
+local userInterface = playerGui:WaitForChild("UserInterface")
+local levelBar = userInterface:WaitForChild("LevelBar")
+local timeLabel = levelBar:WaitForChild("Time")
+
+-- Move it higher: decrease the Y.Offset to go up (negative values = higher)
+timeLabel.Position = UDim2.new(0.5, 0, 0, -20)
+timeLabel.AnchorPoint = Vector2.new(0.5, 0) -- center horizontally
+
+-- Update text initially (no decimals)
+timeLabel.Text = tostring(math.floor(timeValue.Value))
+
+-- Update when value changes
+timeValue.Changed:Connect(function()
+	timeLabel.Text = tostring(math.floor(timeValue.Value))
+end)
